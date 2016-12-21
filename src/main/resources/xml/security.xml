@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans:beans
+	xmlns="http://www.springframework.org/schema/security"
+	xmlns:beans="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.2.xsd   
+    http://www.springframework.org/schema/security http://www.springframework.org/schema/security/spring-security-3.2.xsd" 
+    default-autowire="byName" default-lazy-init="true">
+	
+	
+	<http pattern="/u/main/login" security="none" />
+	<http pattern="/u/randimage/jpeg" security="none"/>
+	<http use-expressions="true"
+		access-denied-page="${security.access_denied_error_page}" 
+		request-matcher="ant"
+		entry-point-ref="authenticationProcessingFilterEntryPoint">
+		<anonymous enabled="false"/>
+		<custom-filter ref="usernamePasswordAuthenticationFilter" position="FORM_LOGIN_FILTER"/>
+		<custom-filter ref="filterSecurityInterceptor" before="FILTER_SECURITY_INTERCEPTOR" />
+		<custom-filter position="CONCURRENT_SESSION_FILTER" ref="concurrencyFilter" />
+		<logout invalidate-session="true" logout-success-url="${security.logout_success_url}" logout-url="${security.logout_url}"/>
+		<!-- 检测失效的sessionId,超时时定位到另外一个URL -->
+		<session-management 
+			session-authentication-strategy-ref="sessionAuthenticationStrategy">
+		</session-management>
+	</http>
+	<authentication-manager alias="authenticationManager" erase-credentials="false">
+		<authentication-provider ref="authenticationProvider"/>
+	</authentication-manager>
+</beans:beans>

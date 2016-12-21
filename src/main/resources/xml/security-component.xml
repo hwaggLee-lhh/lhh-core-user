@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:context="http://www.springframework.org/schema/context"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.2.xsd
+            http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-3.2.xsd" 
+             default-autowire="byName">
+    <!-- 登录页面 -->
+	<bean id="authenticationProcessingFilterEntryPoint" 
+		class="org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint">
+		<property name="loginFormUrl" value="${security.login_page_url}" />
+	</bean>
+	<!-- 登录失败页面 -->
+	<bean id="authenticationFailureHandler" 
+		class="org.springframework.security.web.authentication.SimpleUrlAuthenticationFailureHandler">
+		<property name="defaultFailureUrl" value="${security.login_failure_url}" />
+	</bean>
+	<!-- 登录成功页面 -->
+	<bean id="authenticationSuccessHandler" 
+		class="com.lhh.user.security.LhhCoreLoginSuccessExtendHandler">
+		<property name="defaultTargetUrl" value="${security.login_success_url}" />
+	</bean>
+	<!-- 身份认证集合http://book.51cto.com/art/200807/82819.htm -->
+	<bean id="authenticationManager" class="org.springframework.security.authentication.ProviderManager">
+		<property name="providers">
+		    <list>
+		    	<ref bean="authenticationProvider"/>
+		    </list>
+	    </property>
+	</bean>
+	<!-- 身份认证一 从数据库中获取用户信息，包括用户名和密码。 -->
+	<bean id="authenticationProvider" class="org.springframework.security.authentication.dao.DaoAuthenticationProvider">
+		<!--显示用户错误信息-->
+		<property name="hideUserNotFoundExceptions" value="false" />
+		<property name="userDetailsService" ref="userDetailsService"/> 
+	</bean>
+	<!-- 缓存中查询认证用户是否存在 -->
+	<bean id="userDetailsService"
+		class="com.lhh.user.security.LhhCoreUserDetailsServiceImpl">
+		<property name="userCache" ref="userCache" />
+	</bean>
+	<!-- 国际化 -->
+	<bean id="messageSource" class="org.springframework.context.support.ReloadableResourceBundleMessageSource">
+		<property name="basename" value="classpath:messages_zh_CN" />
+	</bean>
+	<bean id="localeResolver" class="org.springframework.web.servlet.i18n.AcceptHeaderLocaleResolver"/>
+	<!-- 登录页面权限检测 -->
+	<bean id="authenticationUtil" class="com.lhh.user.security.LhhCoreAuthenticationUtil">
+		<property name="accessDecisionVoter" ref="roleVoter" />
+	</bean>
+	<!-- 权限 -->
+	<bean id="roleVoter" class="org.springframework.security.access.vote.RoleVoter" />
+	<!-- 动态用户认证 -->
+	<bean id="usernamePasswordAuthenticationFilter" class="com.lhh.user.filter.LhhCoreUsernamePasswordAuthenticationExtendFilter">
+		<property name="filterProcessesUrl" value="${security.login_url}"></property>
+		<property name="targetUrlParameter" value="${security.login_success_url}"></property>
+		
+	</bean>
+	<!-- 初始化资源信息（用户，角色，权限） -->
+	<bean id="securityCacheManager"
+		class="com.lhh.user.security.LhhCoreSecurityCacheManager">
+		<property name="userCache" ref="userCache" />
+		<property name="resourceCache" ref="resourceCache" />
+		<property name="authenticationService"
+			ref="authenticationService" />
+	</bean>
+	<!-- 缓存 -->
+	<bean name="userCache"
+		class="org.springframework.security.core.userdetails.cache.EhCacheBasedUserCache">
+		<property name="cache">
+			<bean
+				class="org.springframework.cache.ehcache.EhCacheFactoryBean">
+				<property name="cacheManager" ref="cacheManager" />
+				<property name="cacheName" value="userCache" />
+			</bean>
+		</property>
+	</bean>
+	<bean id="resourceCache"
+		class="com.lhh.user.security.LhhCoreEhCacheBasedResourceCache"
+		autowire="byName">
+		<property name="cache">
+			<bean
+				class="org.springframework.cache.ehcache.EhCacheFactoryBean">
+				<property name="cacheName" value="resourceCache" />
+			</bean>
+		</property>
+	</bean>
+	<!-- 执行数据查询 -->
+	<bean id="authenticationService"
+		class="com.lhh.user.core.service.impl.AuthenticationServiceImpl">
+		<property name="dataSource" ref="dataSource" />
+		<property name="loadUsersQuery">
+			<value>${security.sql.load_users_query}</value>
+		</property>
+		<property name="authoritiesByUsernameQuery">
+			<value>${security.sql.authorities_by_username_query}</value>
+		</property>
+
+		<property name="loadResourcesQuery">
+			<value>${security.sql.load_resources_query}</value>
+		</property>
+		<property name="authoritiesByResourceQuery">
+			<value>${security.sql.authorities_by_resource_query}</value>
+		</property>
+	</bean>
+	<bean id="securityMetadataSource" class="com.lhh.user.security.LhhCoreCustomFilterInvocationSecurityMetadataSource" />
+	<bean id="filterSecurityInterceptor" class="org.springframework.security.web.access.intercept.FilterSecurityInterceptor"/>
+	<bean id="accessDecisionManager" class="com.lhh.user.security.LhhCoreCustomAccessDecisionManager">
+		<property name="decisionVoters">
+			<list>
+				<bean class="org.springframework.security.access.vote.RoleVoter" />
+				<bean class="org.springframework.security.access.vote.AuthenticatedVoter" />
+			</list>
+		</property>
+	</bean>
+	<bean id="sessionRegistry"   class="org.springframework.security.core.session.SessionRegistryImpl" /> 
+	<bean id="sessionAuthenticationStrategy" class="org.springframework.security.web.authentication.session.ConcurrentSessionControlStrategy">
+		<constructor-arg ref="sessionRegistry" />
+		<property name="maximumSessions" value="1" />
+	</bean>
+	<bean id="concurrencyFilter" class="org.springframework.security.web.session.ConcurrentSessionFilter">
+		<property name="sessionRegistry" ref="sessionRegistry" />
+		<property name="expiredUrl" value="${security.expired_url}" />
+	</bean>
+	
+	<import resource="classpath:xml/security.xml"/>
+</beans>
